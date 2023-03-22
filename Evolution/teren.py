@@ -44,7 +44,7 @@ def evaluate(individual):
     for i in range(-1, len(individual) - 1):
         if individual[i] < surface:
             if individual[i] < individual[i - 1] and individual[i] < individual[i + 1]:
-                count_top += 1
+                count_lakes += 1
     if count_lakes == lakes:
         fitness += 1
     else:
@@ -67,7 +67,7 @@ def evaluate(individual):
                 if individual[i + 1] - 0.1 <= individual[i] <= individual[i + 1] + 0.1:
                     count_smooth_surface += 1
     new_smooth_surface = count_smooth_surface * 100 / len(individual)
-    if smooth_surface - 10 <= new_smooth_surface <= smooth_surface + 10:
+    if smooth_surface <= new_smooth_surface <= smooth_surface:
         fitness += 1
     else:
         fitness -= 1
