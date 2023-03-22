@@ -125,7 +125,7 @@ s = tools.Statistics(key=lambda ind: ind.fitness.values)
 s.register("mean", np.mean)
 s.register("max", np.max)
 
-hof = tools.HallOfFame(1)  # remembers the best individual throughout evolution history (even if it disappears)
+hof = tools.HallOfFame(1)
 
 pop = toolbox.population(n=100)
 finalpop, logbook = algorithms.eaSimple(pop, toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=NGEN, stats=s, halloffame=hof)

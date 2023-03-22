@@ -21,7 +21,7 @@ surface = 0.5
 top = 2
 lakes = 2
 flooding = 20
-smooth_surface = 20
+steep_slope = 0.2
 
 
 def evaluate(individual):
@@ -29,10 +29,10 @@ def evaluate(individual):
     count_top = 0
     count_lakes = 0
     count_flooding = 0
-    count_smooth_surface = 0
+    count_steep_slope = 0
 
     # считаем количество гор, если гор не ровно нужному количеству, то непригодно
-    for i in range(-1, len(individual) - 1):
+    for i in range(0, len(individual) - 1):
         if individual[i] > individual[i - 1] and individual[i] > individual[i + 1]:
             count_top += 1
     if count_top == top:
@@ -41,7 +41,7 @@ def evaluate(individual):
         fitness -= 1
 
     # считаем количество озер, если озер не ровно нужному количеству, то непригодно
-    for i in range(-1, len(individual) - 1):
+    for i in range(0, len(individual) - 1):
         if individual[i] < surface:
             if individual[i] < individual[i - 1] and individual[i] < individual[i + 1]:
                 count_lakes += 1
@@ -51,26 +51,22 @@ def evaluate(individual):
         fitness -= 1
 
     #  проверяем процент затопленности, если не ровно, то непригодно
-    for i in range(-1, len(individual) - 1):
+    for i in range(0, len(individual) - 1):
         if individual[i] < surface:
             count_flooding += 1
     new_flooding = count_flooding * 100 / len(individual)
-    if flooding - 10 <= new_flooding <= flooding + 10:
+    if flooding - 5 <= new_flooding <= flooding + 5:
         fitness += 1
     else:
         fitness -= 1
 
-    #  проверяем процент ровной поверхности, если не ровно, то непригодно
-    for i in range(-1, len(individual) - 1):
-        if individual[i] > surface:
-            if individual[i - 1] < surface:
-                if individual[i + 1] - 0.1 <= individual[i] <= individual[i + 1] + 0.1:
-                    count_smooth_surface += 1
-    new_smooth_surface = count_smooth_surface * 100 / len(individual)
-    if smooth_surface <= new_smooth_surface <= smooth_surface:
-        fitness += 1
-    else:
+    for i in range(0, len(individual) - 1):
+        if abs(individual[i] - individual[i - 1]) > steep_slope or abs(
+                individual[i] - individual[i + 1]) > steep_slope:
+            count_steep_slope += 1
+    if count_steep_slope > 1:
         fitness -= 1
+
     return fitness,
 
 
@@ -80,9 +76,9 @@ toolbox.register("mate", tools.cxOnePoint)
 toolbox.register("mutate", tools.mutUniformInt, low=0, up=1, indpb=0.05)
 toolbox.register("select", tools.selTournament, tournsize=3)
 
-NGEN = 100
+NGEN = 1000
 CXPB = 0.9
-MUTPB = 0.3
+MUTPB = 0.5
 
 s = tools.Statistics(key=lambda ind: ind.fitness.values)
 s.register("mean", np.mean)
