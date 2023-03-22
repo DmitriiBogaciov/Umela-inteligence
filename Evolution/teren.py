@@ -64,8 +64,10 @@ def evaluate(individual):
         if abs(individual[i] - individual[i - 1]) > steep_slope or abs(
                 individual[i] - individual[i + 1]) > steep_slope:
             count_steep_slope += 1
-    if count_steep_slope > 1:
+    if count_steep_slope > 0:
         fitness -= 1
+    else:
+        fitness += 1
 
     return fitness,
 
@@ -89,8 +91,6 @@ hof = tools.HallOfFame(1)  # pamatuje si 1 nejlepšího jedince za historii evol
 finalpop, logbook = algorithms.eaSimple(pop, toolbox, cxpb=CXPB, mutpb=MUTPB, ngen=NGEN, stats=s, halloffame=hof)
 
 mean, maximum = logbook.select("mean", "max")
-# best_pop = None
-# best_fitness = 0
 
 print(hof)
 
