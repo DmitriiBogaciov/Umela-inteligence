@@ -1,3 +1,4 @@
+import itertools
 import random
 
 import numpy as np
@@ -21,10 +22,10 @@ def random_answer(myhistory, otherhistory):
     return 0
 
 def lookup_table_strategy(table, myhistory, otherhistory):
-    if not myhistory or not otherhistory:
-        return 0  # cooperate by default for the first move
-    last_my_move, last_opponent_move = myhistory[-1], otherhistory[-1]
-    return table.get((last_my_move, last_opponent_move), 0)  # cooperate by default if the key is not found in the table
+    if len(myhistory) < 2 or len(otherhistory) < 2:
+        return 0  # cooperate by default for the first two moves
+    last_two_moves = tuple(myhistory[-2:] + otherhistory[-2:])
+    return table.get(tuple(last_two_moves), 0)  # cooperate by default if the key is not found in the table
 
 
 def rozdej_skore(tah1, tah2):
@@ -72,7 +73,7 @@ def play(f1, f2, stepsnum):
 ucastnici = [always_cooperate, random_answer]
 
 def evaluate(individual):
-    table = {(0, 0): individual[0], (0, 1): individual[1], (1, 0): individual[2], (1, 1): individual[3]}
+    table = {tuple(k): v for k, v in zip(itertools.product([0, 1], repeat=4), individual)}
     strategy = lambda myhistory, otherhistory: lookup_table_strategy(table, myhistory, otherhistory)
     total_score = 0
     for opponent in ucastnici:
@@ -87,7 +88,7 @@ creator.create("Individual", list, fitness=creator.FitnessMax)
 
 toolbox = base.Toolbox()
 toolbox.register("binary_gene", random.randint, 0, 1)
-toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.binary_gene, n=4)
+toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.binary_gene, n=16)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
 toolbox.register("evaluate", evaluate)
@@ -96,13 +97,23 @@ toolbox.register("mutate", tools.mutUniformInt, low=0, up=1, indpb=0.1)
 toolbox.register("select", tools.selTournament, tournsize=3)
 
 
-# Example usage:
-# Define a lookup table (feel free to modify it)
-example_table = {
-    (0, 0): 0,  # cooperate if both players cooperated last turn
-    (0, 1): 1,  # betray if the agent cooperated and the opponent betrayed last turn
-    (1, 0): 0,  # cooperate if the agent betrayed and the opponent cooperated last turn
-    (1, 1): 1,  # betray if both players betrayed last turn
+reactive_agent = {
+    (0, 0, 0, 0): 0,
+    (0, 0, 0, 1): 0,
+    (0, 0, 1, 0): 0,
+    (0, 0, 1, 1): 0,
+    (0, 1, 0, 0): 0,
+    (0, 1, 0, 1): 0,
+    (0, 1, 1, 0): 0,
+    (0, 1, 1, 1): 0,
+    (1, 0, 0, 0): 0,
+    (1, 0, 0, 1): 0,
+    (1, 0, 1, 0): 0,
+    (1, 0, 1, 1): 0,
+    (1, 1, 0, 0): 0,
+    (1, 1, 0, 1): 0,
+    (1, 1, 1, 0): 0,
+    (1, 1, 1, 1): 0,
 }
 
 # Partially apply the lookup table to create a new strategy function
@@ -126,8 +137,7 @@ print("Max:", maximum)
 print("Best individual:", hof)
 
 best_individual = hof[0]
-best_table = {(0, 0): best_individual[0], (0, 1): best_individual[1], (1, 0): best_individual[2],
-              (1, 1): best_individual[3]}
+best_table = {tuple(k): v for k, v in zip(itertools.product([0, 1], repeat=4), best_individual)}
 
 
 def betray(my_history, opponent_history):
