@@ -35,9 +35,7 @@ def evaluate(individual):
     for i in range(0, len(individual) - 1):
         if individual[i] > individual[i - 1] and individual[i] > individual[i + 1]:
             count_top += 1
-    if count_top == top:
-        fitness += 1
-    else:
+    if count_top != top:
         fitness -= 1
 
     # считаем количество озер, если озер не ровно нужному количеству, то непригодно
@@ -45,9 +43,7 @@ def evaluate(individual):
         if individual[i] < surface:
             if individual[i] < individual[i - 1] and individual[i] < individual[i + 1]:
                 count_lakes += 1
-    if count_lakes == lakes:
-        fitness += 1
-    else:
+    if count_lakes != lakes:
         fitness -= 1
 
     #  проверяем процент затопленности, если не ровно, то непригодно
@@ -56,7 +52,7 @@ def evaluate(individual):
             count_flooding += 1
     new_flooding = count_flooding * 100 / len(individual)
     if flooding - 5 <= new_flooding <= flooding + 5:
-        fitness += 1
+        fitness += 0
     else:
         fitness -= 1
 
@@ -66,8 +62,6 @@ def evaluate(individual):
             count_steep_slope += 1
     if count_steep_slope > 0:
         fitness -= 1
-    else:
-        fitness += 1
 
     return fitness,
 
