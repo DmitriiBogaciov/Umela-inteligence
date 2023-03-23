@@ -21,6 +21,7 @@ def random_answer(myhistory, otherhistory):
 
     return 0
 
+
 def lookup_table_strategy(table, myhistory, otherhistory):
     if len(myhistory) < 2 or len(otherhistory) < 2:
         return 0  # cooperate by default for the first two moves
@@ -72,6 +73,7 @@ def play(f1, f2, stepsnum):
 # seznam funkci o testování
 ucastnici = [always_cooperate, random_answer]
 
+
 def evaluate(individual):
     table = {tuple(k): v for k, v in zip(itertools.product([0, 1], repeat=4), individual)}
     strategy = lambda myhistory, otherhistory: lookup_table_strategy(table, myhistory, otherhistory)
@@ -95,7 +97,6 @@ toolbox.register("evaluate", evaluate)
 toolbox.register("mate", tools.cxOnePoint)
 toolbox.register("mutate", tools.mutUniformInt, low=0, up=1, indpb=0.1)
 toolbox.register("select", tools.selTournament, tournsize=3)
-
 
 reactive_agent = {
     (0, 0, 0, 0): 0,
@@ -140,18 +141,17 @@ best_individual = hof[0]
 best_table = {tuple(k): v for k, v in zip(itertools.product([0, 1], repeat=4), best_individual)}
 
 
-def betray(my_history, opponent_history):
+def zrada(my_history, opponent_history):
     return lookup_table_strategy(best_table, my_history, opponent_history)
 
 
 # Add the new strategy to the list of participants
 
 
-ucastnici.append(betray)
+ucastnici.append(zrada)
 
 # funkce se mohou v seznamu i opakovat
 # ucastnici = [always_cooperate, always_cooperate, random_answer, random_answer, random_answer]
-
 
 
 l = len(ucastnici)
