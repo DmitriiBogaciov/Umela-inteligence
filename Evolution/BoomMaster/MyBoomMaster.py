@@ -143,13 +143,45 @@ def reset_mes(mes, pop):
 
 # TODO
 
-def my_senzor(me):
-    return 1
+def dist_to_start(me):
+    return me.rect.x + me.rect.y
 
 
-# -----> ZDE je prostor pro vlastní senzorické funkce !!!!
+def dist_to_flag(me, flag):
+    return (flag.rect.x - me.rect.x) + (flag.rect.y - me.rect.y)
 
 
+def dist_to_walls(me):
+    return (me.rect.x, me.rect.y, WIDTH - me.rect.x - ME_SIZE, HEIGHT - me.rect.y - ME_SIZE)
+
+
+def dist_to_nearest_enemy(me, mines):
+    d = []
+    for m in mines:
+        d.append((math.sqrt((m.rect.x - me.rect.x) ** 2 + (m.rect.y - me.rect.y) ** 2)))
+
+    ind = np.argmin(d)
+    return d[ind]
+
+def quad_of_enemies(me, mines, dist):
+    quad_counts = [0, 0, 0, 0]  # Счетчики для каждого квадранта
+
+    for mine in mines:
+        dx = mine.rect.x - me.rect.x
+        dy = mine.rect.y - me.rect.y
+        distance = math.sqrt(dx ** 2 + dy ** 2)
+
+        if distance <= dist:
+            if dx > 0 and dy > 0:
+                quad_counts[0] += 1  # 1-й квадрант
+            elif dx < 0 < dy:
+                quad_counts[1] += 1  # 2-й квадрант
+            elif dx < 0 and dy < 0:
+                quad_counts[2] += 1  # 3-й квадрант
+            elif dx > 0 > dy:
+                quad_counts[3] += 1  # 4-й квадрант
+
+    return quad_counts
 # ---------------------------------------------------------------------------
 # funkce řešící pohyb agentů
 # ----------------------------------------------------------------------------
@@ -298,8 +330,34 @@ def draw_text(text):
 # funkce reprezentující výpočet neuronové funkce
 # funkce dostane na vstupu vstupy neuronové sítě inp, a váhy hran wei
 # vrátí seznam hodnot výstupních neuronů
+
+I = 10
+N = 10
+O = 4
+
+
 def nn_function(inp, wei):
-    return [3]
+    n = []
+    for i in range(N):
+        locwei = wei[I * i: i + I]
+        l = [locwei[r] * inp[r] for r in range(I)]
+        n.append(sum(l))
+
+    prahy = wei[N * I:I * i + N]
+
+    for i in range(N):
+        if n[i] >= prahy[i]:
+            n[i] = 1.0
+        else:
+            n[i] = 0.0
+
+    restwei = wei[(I + 1) * N:]
+    out = []
+
+    for i in range(O):
+        locwei = restwei[i * N:i * N + N]
+        l = [locwei[r] * n[r] for r in range(N)]
+        out.append(sum(l))
 
 
 # naviguje jedince pomocí neuronové sítě a jeho vlastní sekvence v něm schované
