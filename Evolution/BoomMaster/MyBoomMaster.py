@@ -144,15 +144,31 @@ def reset_mes(mes, pop):
 # TODO
 
 def dist_to_start(me):
-    return me.rect.x + me.rect.y
+    dx = me.rect.x - 10  # assuming the start point is at (10, 10)
+    dy = me.rect.y - 10
+    return math.sqrt(dx ** 2 + dy ** 2)
 
 
 def dist_to_flag(me, flag):
-    return (flag.rect.x - me.rect.x) + (flag.rect.y - me.rect.y)
+    dx = flag.rect.x - me.rect.x
+    dy = flag.rect.y - me.rect.y
+    return math.sqrt(dx ** 2 + dy ** 2)
 
 
-def dist_to_walls(me):
-    return (me.rect.x, me.rect.y, WIDTH - me.rect.x - ME_SIZE, HEIGHT - me.rect.y - ME_SIZE)
+def dist_to_left_wall(me):
+    return me.rect.x
+
+
+def dist_to_top_wall(me):
+    return me.rect.y
+
+
+def dist_to_right_wall(me):
+    return WIDTH - me.rect.x - ME_SIZE
+
+
+def dist_to_bottom_wall(me):
+    return HEIGHT - me.rect.y - ME_SIZE
 
 
 def dist_to_nearest_enemy(me, mines):
@@ -160,28 +176,10 @@ def dist_to_nearest_enemy(me, mines):
     for m in mines:
         d.append((math.sqrt((m.rect.x - me.rect.x) ** 2 + (m.rect.y - me.rect.y) ** 2)))
 
-    ind = np.argmin(d)
+    ind = d.index(min(d))
     return d[ind]
 
-def quad_of_enemies(me, mines, dist):
-    quad_counts = [0, 0, 0, 0]  # Счетчики для каждого квадранта
 
-    for mine in mines:
-        dx = mine.rect.x - me.rect.x
-        dy = mine.rect.y - me.rect.y
-        distance = math.sqrt(dx ** 2 + dy ** 2)
-
-        if distance <= dist:
-            if dx > 0 and dy > 0:
-                quad_counts[0] += 1  # 1-й квадрант
-            elif dx < 0 < dy:
-                quad_counts[1] += 1  # 2-й квадрант
-            elif dx < 0 and dy < 0:
-                quad_counts[2] += 1  # 3-й квадрант
-            elif dx > 0 > dy:
-                quad_counts[3] += 1  # 4-й квадрант
-
-    return quad_counts
 # ---------------------------------------------------------------------------
 # funkce řešící pohyb agentů
 # ----------------------------------------------------------------------------
@@ -331,60 +329,55 @@ def draw_text(text):
 # funkce dostane na vstupu vstupy neuronové sítě inp, a váhy hran wei
 # vrátí seznam hodnot výstupních neuronů
 
-I = 10
-N = 10
-O = 4
+num_inputs = 7
+num_hidden = 10
+num_outputs = 4
 
 
-def nn_function(inp, wei):
-    n = []
-    for i in range(N):
-        locwei = wei[I * i: i + I]
-        l = [locwei[r] * inp[r] for r in range(I)]
-        n.append(sum(l))
+def nn_function(inputs, weights):
+    hidden_activations = []
 
-    prahy = wei[N * I:I * i + N]
+    # Calculate activations for hidden layer
+    for i in range(num_hidden):
+        start_idx = i * num_inputs
+        end_idx = start_idx + num_inputs
+        inputs_weights = weights[start_idx:end_idx]
 
-    for i in range(N):
-        if n[i] >= prahy[i]:
-            n[i] = 1.0
-        else:
-            n[i] = 0.0
+        weighted_sum = sum([float(i) * w for i, w in zip(inputs, list(map(float, inputs_weights)))])
+        hidden_activations.append(weighted_sum)
 
-    restwei = wei[(I + 1) * N:]
-    out = []
+    # Apply threshold function to hidden activations
+    thresholds = weights[num_hidden * num_inputs:num_hidden * num_inputs + num_hidden]
+    hidden_activations = [1.0 if a >= t else 0.0 for a, t in zip(hidden_activations, thresholds)]
 
-    for i in range(O):
-        locwei = restwei[i * N:i * N + N]
-        l = [locwei[r] * n[r] for r in range(N)]
-        out.append(sum(l))
+    # Calculate activations for output layer
+    output_activations = []
+    for i in range(num_outputs):
+        start_idx = num_hidden * num_inputs + num_hidden + i * num_hidden
+        end_idx = start_idx + num_hidden
+        hidden_weights = weights[start_idx:end_idx]
+
+        weighted_sum = sum([a * w for a, w in zip(hidden_activations, hidden_weights)])
+        output_activations.append(weighted_sum)
+
+    return output_activations
 
 
 # naviguje jedince pomocí neuronové sítě a jeho vlastní sekvence v něm schované
-def nn_navigate_me(me, inp):
-    # TODO  <------ ZDE vlastní kód vyhodnocení výstupů z neuronové sítě !!!!!!
+def nn_navigate_me(me, inputs):
+    outputs = nn_function(inputs, me.sequence)
+    action_idx = np.argmax(outputs)
 
-    out = np.array(nn_function(inp, me.sequence))
-    ind = out[0]
-    # print(out)
-
-    # nahoru, pokud není zeď
-    if ind == 0 and me.rect.y - ME_VELOCITY > 0:
+    if action_idx == 0 and me.rect.y - ME_VELOCITY > 0:
         me.rect.y -= ME_VELOCITY
         me.dist += ME_VELOCITY
-
-    # dolu, pokud není zeď
-    if ind == 1 and me.rect.y + me.rect.height + ME_VELOCITY < HEIGHT:
+    elif action_idx == 1 and me.rect.y + me.rect.height + ME_VELOCITY < HEIGHT:
         me.rect.y += ME_VELOCITY
         me.dist += ME_VELOCITY
-
-    # doleva, pokud není zeď
-    if ind == 2 and me.rect.x - ME_VELOCITY > 0:
+    elif action_idx == 2 and me.rect.x - ME_VELOCITY > 0:
         me.rect.x -= ME_VELOCITY
         me.dist += ME_VELOCITY
-
-    # doprava, pokud není zeď
-    if ind == 3 and me.rect.x + me.rect.width + ME_VELOCITY < WIDTH:
+    elif action_idx == 3 and me.rect.x + me.rect.width + ME_VELOCITY < WIDTH:
         me.rect.x += ME_VELOCITY
         me.dist += ME_VELOCITY
 
@@ -403,11 +396,16 @@ def handle_mes_movement(mes, mines, flag):
 
         if me.alive and not me.won:
             # <----- ZDE  sbírání vstupů ze senzorů !!!
-            # naplnit vstup in vstupy ze senzorů
-            inp = []
-
-            inp.append(my_senzor(me))
-
+            # naplnit vstup inp vstupy ze senzorů
+            inp = [
+                dist_to_start(me),
+                dist_to_flag(me, flag),
+                dist_to_left_wall(me),
+                dist_to_top_wall(me),
+                dist_to_right_wall(me),
+                dist_to_bottom_wall(me),
+                dist_to_nearest_enemy(me, mines),
+            ]
             nn_navigate_me(me, inp)
 
 
@@ -424,11 +422,16 @@ def update_mes_timers(mes, timer):
 
 
 # funkce pro výpočet fitness všech jedinců
-def handle_mes_fitnesses(mes):
+def handle_mes_fitnesses(mes, flag):
     # <--------- TODO  ZDE se počítá fitness jedinců !!!!
     # na základě informací v nich uložených, či jiných vstupů
+    fitness_values = []
     for me in mes:
-        me.fitness = me.timealive
+        me.fitness = me.timealive - dist_to_flag(me, flag) + dist_to_start(me)
+        if me_won(me, flag):
+            me.fitness += 10000
+        fitness_values.append(me.fitness)
+    return fitness_values
 
 
 # uloží do hof jedince s nejlepší fitness
@@ -448,10 +451,10 @@ def main():
 
     VELIKOST_POPULACE = 10
     EVO_STEPS = 5  # pocet kroku evoluce
-    DELKA_JEDINCE = 10  # <--------- záleží na počtu vah a prahů u neuronů !!!!!
+    DELKA_JEDINCE = (num_inputs * num_hidden) + num_hidden + (num_hidden * num_outputs) # <--------- záleží na počtu vah a prahů u neuronů !!!!!
     NGEN = 30  # počet generací
-    CXPB = 0.6  # pravděpodobnost crossoveru na páru
-    MUTPB = 0.2  # pravděpodobnost mutace
+    CXPB = 0.7  # pravděpodobnost crossoveru na páru
+    MUTPB = 0.7  # pravděpodobnost mutace
 
     SIMSTEPS = 1000
 
@@ -494,7 +497,7 @@ def main():
 
     run = True
 
-    level = 1  # <--- ZDE nastavení obtížnosti počtu min !!!!!
+    level = 10  # <--- ZDE nastavení obtížnosti počtu min !!!!!
     generation = 0
 
     evolving = True
@@ -541,7 +544,7 @@ def main():
         if timer >= SIMSTEPS or nobodys_playing(mes):
 
             # přepočítání fitness funkcí, dle dat uložených v jedinci
-            handle_mes_fitnesses(mes)  # <--------- ZDE funkce výpočtu fitness !!!!
+            handle_mes_fitnesses(mes, flag)  # <--------- ZDE funkce výpočtu fitness !!!!
 
             update_hof(hof, mes)
 
