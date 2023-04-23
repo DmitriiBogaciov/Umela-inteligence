@@ -179,6 +179,21 @@ def dist_to_nearest_enemy(me, mines):
     ind = d.index(min(d))
     return d[ind]
 
+def dist_to_nearest_enemy_horizontally(me, mines):
+    horizontal_distances = []
+    for m in mines:
+        if me.rect.y + ME_SIZE >= m.rect.y and me.rect.y <= m.rect.y + ENEMY_SIZE:
+            horizontal_distances.append(abs(m.rect.x - me.rect.x))
+    return min(horizontal_distances) if horizontal_distances else float("inf")
+
+
+def dist_to_nearest_enemy_vertically(me, mines):
+    vertical_distances = []
+    for m in mines:
+        if me.rect.x + ME_SIZE >= m.rect.x and me.rect.x <= m.rect.x + ENEMY_SIZE:
+            vertical_distances.append(abs(m.rect.y - me.rect.y))
+    return min(vertical_distances) if vertical_distances else float("inf")
+
 
 # ---------------------------------------------------------------------------
 # funkce řešící pohyb agentů
@@ -366,7 +381,9 @@ def nn_function(inputs, weights):
 # naviguje jedince pomocí neuronové sítě a jeho vlastní sekvence v něm schované
 def nn_navigate_me(me, inputs):
     outputs = nn_function(inputs, me.sequence)
-    action_idx = np.argmax(outputs)
+    max_value = max(outputs)
+    max_indices = [i for i, v in enumerate(outputs) if v == max_value]
+    action_idx = random.choice(max_indices)
 
     if action_idx == 0 and me.rect.y - ME_VELOCITY > 0:
         me.rect.y -= ME_VELOCITY
@@ -405,6 +422,8 @@ def handle_mes_movement(mes, mines, flag):
                 dist_to_right_wall(me),
                 dist_to_bottom_wall(me),
                 dist_to_nearest_enemy(me, mines),
+                dist_to_nearest_enemy_horizontally(me, mines),
+                dist_to_nearest_enemy_vertically(me, mines)
             ]
             nn_navigate_me(me, inp)
 
@@ -423,14 +442,20 @@ def update_mes_timers(mes, timer):
 
 # funkce pro výpočet fitness všech jedinců
 def handle_mes_fitnesses(mes, flag):
-    # <--------- TODO  ZDE se počítá fitness jedinců !!!!
-    # na základě informací v nich uložených, či jiných vstupů
     fitness_values = []
     for me in mes:
-        me.fitness = me.timealive - dist_to_flag(me, flag) + dist_to_start(me)
+        me.fitness = me.timealive - (dist_to_flag(me, flag) ** 2 - dist_to_start(me) ** 2)
         if me_won(me, flag):
             me.fitness += 10000
         fitness_values.append(me.fitness)
+
+    fitness_values = np.array(fitness_values)
+    normalized_fitness_values = (fitness_values - np.min(fitness_values)) / (
+                np.max(fitness_values) - np.min(fitness_values))
+
+    for me, norm_fitness in zip(mes, normalized_fitness_values):
+        me.fitness = norm_fitness
+
     return fitness_values
 
 
@@ -449,10 +474,10 @@ def main():
     # =====================================================================
     # <----- ZDE Parametry nastavení evoluce !!!!!
 
-    VELIKOST_POPULACE = 10
-    EVO_STEPS = 5  # pocet kroku evoluce
+    VELIKOST_POPULACE = 50
+    EVO_STEPS = 10  # pocet kroku evoluce
     DELKA_JEDINCE = (num_inputs * num_hidden) + num_hidden + (num_hidden * num_outputs) # <--------- záleží na počtu vah a prahů u neuronů !!!!!
-    NGEN = 30  # počet generací
+    NGEN = 100  # počet generací
     CXPB = 0.7  # pravděpodobnost crossoveru na páru
     MUTPB = 0.7  # pravděpodobnost mutace
 
@@ -463,7 +488,10 @@ def main():
 
     toolbox = base.Toolbox()
 
-    toolbox.register("attr_rand", random.random)
+    def random_weight():
+        return random.uniform(-1, 1)
+
+    toolbox.register("attr_rand", random_weight)
     toolbox.register("individual", tools.initRepeat, creator.Individual, toolbox.attr_rand, DELKA_JEDINCE)
     toolbox.register("population", tools.initRepeat, list, toolbox.individual)
 
@@ -497,7 +525,7 @@ def main():
 
     run = True
 
-    level = 10  # <--- ZDE nastavení obtížnosti počtu min !!!!!
+    level = 5  # <--- ZDE nastavení obtížnosti počtu min !!!!!
     generation = 0
 
     evolving = True
